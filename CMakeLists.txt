@@ -8,9 +8,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 set(DOCUMENTATION False)
 
+find_package(Curses REQUIRED)
+
 # 包含的头文件目录
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/cicq)
 include_directories(${PROJECT_SOURCE_DIR}/libs/cjson)
+include_directories(${PROJECT_SOURCE_DIR}/libs/ncurses/include)
+include_directories(${CURSES_INCLUDE_DIR})
 
 # 枚举头文件
 file(GLOB_RECURSE INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/include/cicq/*.h)
@@ -29,12 +33,10 @@ set(COMMON_SOURCES
 
 set(thirdparty_libraries
 	cjson
-    # sqlite3
 )
 
 set(thirdparty_link_libraries
 	cjson
-	# sqlite3
 )
 
 # 添加子目录
@@ -45,6 +47,7 @@ endforeach()
 
 set(link_libraries
 	${thirdparty_link_libraries}
+    ${CURSES_LIBRARIES}
 )
 
 # 生成客户端
