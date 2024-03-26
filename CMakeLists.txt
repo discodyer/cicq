@@ -27,7 +27,7 @@ set(ENABLE_CJSON_UNINSTALL False)
 
 # 定义客户端和服务端需要的共用源文件
 set(COMMON_SOURCES
-    # src/File1.cpp
+    src/chatroom.c
     # src/File2.cpp
 )
 
@@ -52,7 +52,7 @@ set(link_libraries
 
 # 生成客户端
 add_executable(cicq
-    src/client_main.cc
+    src/client_main.c
     ${COMMON_SOURCES}
 )
 # 确保链接到libs目录下编译的libs
@@ -60,7 +60,7 @@ target_link_libraries(cicq PRIVATE ${link_libraries})
 
 # 生成服务端
 add_executable(cicq-server
-    src/server_main.cc
+    src/server_main.c
     ${COMMON_SOURCES}
 )
 # 确保链接到libs目录下编译的libs
