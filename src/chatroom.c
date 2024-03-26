@@ -103,7 +103,7 @@ void renderWelcome()
     echo();
 }
 
-/// @brief 处理用户选项
+/// @brief 处理欢迎界面用户选项
 /// @param handler
 int handleWelcomeOpinion(Chatroom *handler)
 {
@@ -161,6 +161,8 @@ void startChatroom(Chatroom *handler)
     doExit(handler);
 }
 
+/// @brief 欢迎界面
+/// @param handler 
 void doWelcome(Chatroom *handler)
 {
     // 显示开始菜单
@@ -169,6 +171,8 @@ void doWelcome(Chatroom *handler)
     handleWelcomeOpinion(handler);
 }
 
+/// @brief 登录界面
+/// @param handler 
 void doLogin(Chatroom *handler)
 {
     char username_[32] = "";
@@ -199,13 +203,15 @@ void doLogin(Chatroom *handler)
     }
 }
 
+/// @brief 注册界面
+/// @param handler 
 void doRegister(Chatroom *handler)
 {
     clear();
     printw("Registering CICQ\n");
     printw("Enter username: ");
     getnstr(handler->user->username, 31);
-    noecho();
+    noecho(); // 关闭回显
     printw("Enter password: ");
     getPassword(handler->user->password, 31);
 
@@ -218,6 +224,8 @@ void doRegister(Chatroom *handler)
     return;
 }
 
+/// @brief 聊天室界面
+/// @param handler 
 void doChatroom(Chatroom *handler)
 {
     clear();
@@ -227,6 +235,8 @@ void doChatroom(Chatroom *handler)
     return;
 }
 
+/// @brief 退出界面
+/// @param handler 
 void doExit(Chatroom *handler)
 {
     clear();
@@ -235,6 +245,7 @@ void doExit(Chatroom *handler)
     endwin();
 }
 
+/// @brief ncurses 初始化
 void initScreen()
 {
     initscr();
@@ -245,11 +256,15 @@ void initScreen()
     use_default_colors(); // 使用默认颜色
 }
 
+/// @brief ncurses 界面退出
 void closeScreen()
 {
     endwin();
 }
 
+/// @brief 获取密码
+/// @param password 
+/// @param length 
 void getPassword(char *password, uint8_t length)
 {
     int ch, i = 0;
