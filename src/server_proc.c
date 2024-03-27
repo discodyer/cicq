@@ -1,4 +1,5 @@
 #include "server_proc.h"
+#include "status_code.h"
 
 extern UserList userList;
 
@@ -50,7 +51,7 @@ void accept_conn_cb(struct evconnlistener *listener, evutil_socket_t fd,
 
 void read_cb(struct bufferevent *bev, void *ctx)
 {
-    UserList* userList = (UserList*)ctx;
+    UserList *userList = (UserList *)ctx;
     struct evbuffer *input = bufferevent_get_input(bev);
     size_t len = evbuffer_get_length(input);
     char *data = malloc(len + 1);
@@ -61,39 +62,98 @@ void read_cb(struct bufferevent *bev, void *ctx)
     cJSON *json = cJSON_Parse(data);
     free(data); // 不再需要原始数据
     if (!json)
-        return; // 解析错误处理
+    {
+        cJSON *response = cJSON_CreateObject();
+        cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_ERROR);
+        cJSON_AddStringToObject(response, "message", "Internal error");
+        char *responseStr = cJSON_PrintUnformatted(response);
+        bufferevent_write(bev, responseStr, strlen(responseStr));
+        free(responseStr);
+        cJSON_Delete(response);
+        printf("内部错误: json解析失败\n");
+        return;
+    } // 解析错误处理
 
     cJSON *statuscode = cJSON_GetObjectItem(json, "statuscode");
-    if (cJSON_IsNumber(statuscode) && statuscode->valueint == 101)
+    if (cJSON_IsNumber(statuscode) && statuscode->valueint == STATUS_CODE_REGISTER)
     {
         cJSON *username = cJSON_GetObjectItem(json, "username");
         cJSON *password = cJSON_GetObjectItem(json, "password");
 
-        if (findUser(userList->head, username->valuestring))
-        {
-            // 用户已存在
-            cJSON *response = cJSON_CreateObject();
-            cJSON_AddNumberToObject(response, "statuscode", 400);
-            cJSON_AddStringToObject(response, "message", "注册失败，用户已经存在。");
-            char *responseStr = cJSON_PrintUnformatted(response);
-            bufferevent_write(bev, responseStr, strlen(responseStr));
-            free(responseStr);
-            cJSON_Delete(response);
-            printf("注册失败，用户已经存在。\n");
-        }
-        else
+        if (!findUser(userList->head, username->valuestring))
         {
             // 添加新用户
             addUser(&userList->head, username->valuestring, password->valuestring);
             cJSON *response = cJSON_CreateObject();
-            cJSON_AddNumberToObject(response, "statuscode", 200);
+            cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_REGISTER_SUCESSFUL);
             cJSON_AddStringToObject(response, "message", "注册成功。");
             char *responseStr = cJSON_PrintUnformatted(response);
             bufferevent_write(bev, responseStr, strlen(responseStr));
             free(responseStr);
             cJSON_Delete(response);
-            printf("注册成功。\n");
+            printf("用户 %s 注册成功。\n", username->valuestring);
         }
+        else
+        {
+            // 用户已存在
+            cJSON *response = cJSON_CreateObject();
+            cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_REGISTER_FAILED_USERNAME_EXSIST);
+            cJSON_AddStringToObject(response, "message", "注册失败，用户已经存在。");
+            char *responseStr = cJSON_PrintUnformatted(response);
+            bufferevent_write(bev, responseStr, strlen(responseStr));
+            free(responseStr);
+            cJSON_Delete(response);
+            printf("用户 %s 注册失败，用户已经存在。\n", username->valuestring);
+        }
+    }
+    else if (cJSON_IsNumber(statuscode) && statuscode->valueint == STATUS_CODE_LOGIN)
+    {
+        cJSON *username = cJSON_GetObjectItem(json, "username");
+        cJSON *password = cJSON_GetObjectItem(json, "password");
+        User *current_user = findUser(userList->head, username->valuestring);
+        if (current_user)
+        { // 用户已存在
+            cJSON *response = cJSON_CreateObject();
+            if (strcmp(current_user->password, password->valuestring) == 0)
+            { // 密码正确
+                cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_LOGIN_SUCESSFUL);
+                cJSON_AddStringToObject(response, "message", "登录成功");
+                printf("用户 %s 登录成功\n", username->valuestring);
+            }
+            else
+            { // 密码错误
+                cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_LOGIN_FAILED_WROWN_PASSWORD);
+                cJSON_AddStringToObject(response, "message", "登录失败: 密码错误");
+                printf("用户 %s 登录失败: 密码错误\n", username->valuestring);
+            }
+            char *responseStr = cJSON_PrintUnformatted(response);
+            bufferevent_write(bev, responseStr, strlen(responseStr));
+            free(responseStr);
+            cJSON_Delete(response);
+        }
+        else
+        {
+            // 用户不存在
+            cJSON *response = cJSON_CreateObject();
+            cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_LOGIN_FAILED_USER_NOT_FOUND);
+            cJSON_AddStringToObject(response, "message", "登录失败: 用户不存在");
+            char *responseStr = cJSON_PrintUnformatted(response);
+            bufferevent_write(bev, responseStr, strlen(responseStr));
+            free(responseStr);
+            cJSON_Delete(response);
+            printf("用户 %s 登录失败: 用户不存在\n", username->valuestring);
+        }
+    }
+    else
+    {
+        cJSON *response = cJSON_CreateObject();
+        cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_ERROR);
+        cJSON_AddStringToObject(response, "message", "Internal error");
+        char *responseStr = cJSON_PrintUnformatted(response);
+        bufferevent_write(bev, responseStr, strlen(responseStr));
+        free(responseStr);
+        cJSON_Delete(response);
+        printf("内部错误: 未知操作\n");
     }
 
     cJSON_Delete(json);

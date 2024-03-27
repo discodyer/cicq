@@ -21,12 +21,6 @@ int main(int argc, char **argv)
     struct bufferevent *bev;
     struct sockaddr_in sin;
 
-    // 检查命令行参数
-    // if (argc != 4) {
-    //     fprintf(stderr, "Usage: %s <server_ip> <port> <username>\n", argv[0]);
-    //     return 1;
-    // }
-
     // 初始化libevent
     base = event_base_new();
     if (!base) {
@@ -37,8 +31,6 @@ int main(int argc, char **argv)
     // 设置服务器地址
     memset(&sin, 0, sizeof(sin));
     sin.sin_family = AF_INET;
-    // sin.sin_addr.s_addr = inet_addr(argv[1]);
-    // sin.sin_port = htons(atoi(argv[2]));
     sin.sin_addr.s_addr = inet_addr("127.0.0.1");
     sin.sin_port = htons(atoi("8888"));
 
@@ -57,10 +49,9 @@ int main(int argc, char **argv)
     Chatroom chat = {
         .ui_state = kWelcome,
         .user = &currentUser,
-        .server_address = NULL,
         .message_list.head = NULL,
         .message_list.tail = NULL,
-        .f_register_status = kRegisterNormal,
+        .f_status_code = 0,
         .base = base,
         .bev = bev};
 
@@ -76,14 +67,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    // // 构建JSON格式的注册信息
-    // char info[512];
-    // // snprintf(info, sizeof(info), "{\"statuscode\":101, \"username\":\"%s\", \"password\":\"password123\"}", argv[3]);
-    // snprintf(info, sizeof(info), "{\"statuscode\":101, \"username\":\"%s\", \"password\":\"password123\"}", "cody");
-    // bufferevent_write(bev, info, strlen(info)); // 发送注册信息
-
     // 进入事件循环
-    // event_base_dispatch(base);
     // 创建一个线程来运行libevent的事件循环
     pthread_t thread_id;
     if (pthread_create(&thread_id, NULL, event_loop_thread, (void *)base) != 0) {
@@ -99,9 +83,7 @@ int main(int argc, char **argv)
     pthread_join(thread_id, NULL);
 
     // 清理资源
-    // bufferevent_free(bev);
     event_base_free(base);
-    // freeMessageList(list);
     closeScreen();
     return 0;
 }

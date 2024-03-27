@@ -115,14 +115,14 @@ int handleWelcomeOpinion(Chatroom *handler)
     scanw("%c", &choice);
     switch (choice)
     {
-    case '1':
+    case '1': // 跳转注册
         handler->ui_state = kRegister;
         return 0;
-    case '2':
+    case '2': // 跳转登录
         handler->ui_state = kLogin;
         return 0;
     case '3':
-    case 'q':
+    case 'q': // 退出程序
         handler->ui_state = kExit;
         return 0;
     default:
@@ -142,19 +142,19 @@ void startChatroom(Chatroom *handler)
     {
         switch (handler->ui_state)
         {
-        case kWelcome:
+        case kWelcome: // 欢迎
             doWelcome(handler);
             break;
-        case kLogin:
+        case kLogin: // 登录
             doLogin(handler);
             break;
-        case kRegister:
+        case kRegister: // 注册
             doRegister(handler);
             break;
-        case kChatroom:
+        case kChatroom: // 聊天室
             doChatroom(handler);
             break;
-        case kExit:
+        case kExit: // 退出
             doExit(handler);
             return;
         default:
@@ -189,28 +189,48 @@ void doLogin(Chatroom *handler)
     printw("Enter password: ");
     getPassword(password_, 31);
 
-    if ((strcmp(username_, handler->user->username) == 0) && (strcmp(password_, handler->user->password) == 0))
+    printw("\nSending request to server...\n");
+
+    handler->f_status_code = STATUS_CODE_LOGIN;
+
+    // 发送数据给服务器
+    loginWithServer(handler, username_, password_);
+
+    // 阻塞并等待服务器响应或超时
+    while (handler->f_status_code == STATUS_CODE_LOGIN)
     {
-        printw("\n");
+        continue;
+    }
+
+    printw("\n");
+    switch (handler->f_status_code)
+    {
+    case STATUS_CODE_LOGIN_SUCESSFUL:
         printw("Login sucessful! Press any key to enter chatroom. ");
-        getch(); // 等待用户输入
         handler->ui_state = kChatroom;
-        return;
-    }
-    else
-    {
-        printw("\n");
-        printw("Login Failed! Press any key to continue. ");
-        getch(); // 等待用户输入
+        break;
+    case STATUS_CODE_LOGIN_FAILED_WROWN_PASSWORD:
+        printw("Login Failed: Wrong password. Press any key to continue. ");
         handler->ui_state = kWelcome;
-        return;
+        break;
+    case STATUS_CODE_LOGIN_FAILED_USER_NOT_FOUND:
+        printw("Login Failed: User not found. Press any key to continue. ");
+        handler->ui_state = kWelcome;
+        break;
+    default:
+        printw("Login Failed: Internal error. Press any key to continue. ");
+        handler->ui_state = kWelcome;
+        break;
     }
+    getch(); // 等待用户输入
+    return;
 }
 
 /// @brief 注册界面
 /// @param handler
 void doRegister(Chatroom *handler)
 {
+    // 渲染界面
     char username_[32] = "";
     char password_[32] = "";
     clear();
@@ -223,35 +243,38 @@ void doRegister(Chatroom *handler)
 
     printw("\nSending request to server...\n");
 
-    handler->f_register_status = kRegisterNormal;
+    handler->f_status_code = STATUS_CODE_REGISTER_NORMAL;
 
+    // 发送数据给服务器
     registerWithServer(handler, username_, password_);
 
-    while (handler->f_register_status == kRegisterNormal)
+    // 阻塞并等待服务器响应或超时
+    while (handler->f_status_code == STATUS_CODE_REGISTER_NORMAL)
     {
         continue;
     }
 
-    switch (handler->f_register_status)
+    // 判断返回的结果
+    switch (handler->f_status_code)
     {
-    case kRegisterSucessful:
+    case STATUS_CODE_REGISTER_SUCESSFUL: // 注册成功
         printw("Registion Sucessful!\n");
         break;
-    case kRegisterFailedTimeout:
+    case STATUS_CODE_REGISTER_FAILED_TIMEOUT: // 注册失败 - 超时
         printw("Registion Failed: Timeout\n");
         break;
-    case kRegisterFailedUsernameExsist:
+    case STATUS_CODE_REGISTER_FAILED_USERNAME_EXSIST: // 注册失败 - 用户名已存在
         printw("Registion Failed: Username Exsist\n");
         break;
-    case kRegisterError:
-        printw("Registion Failed: Server Error\n");
+    case STATUS_CODE_ERROR: // 注册失败 - 服务器错误
+        printw("Registion Failed: Server internal Error\n");
         break;
-    default:
+    default: // 注册失败 - 未知错误
         printw("Registion Failed: Unknown Error\n");
         break;
     }
-    handler->f_register_status = kRegisterNormal;
 
+    printw("Press any key to continue.\n");
     getch(); // 等待用户输入回车
 
     handler->ui_state = kWelcome;
@@ -297,7 +320,7 @@ void closeScreen()
     endwin();
 }
 
-/// @brief 获取密码 - 带
+/// @brief 获取密码 - 带 * 遮挡
 /// @param password
 /// @param length
 void getPassword(char *password, uint8_t length)

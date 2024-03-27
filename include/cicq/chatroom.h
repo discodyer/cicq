@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <ncurses.h>
 #include "json_wrapper.h"
+#include "status_code.h"
 
 typedef struct
 {
@@ -29,20 +30,20 @@ enum UIState
 
 enum FlagRegisterStatusCode
 {
-    kRegisterSucessful = 200,
-    kRegisterFailedTimeout = 401,
-    kRegisterNormal = 100,
-    kRegisterFailedUsernameExsist = 402,
-    kRegisterError = 400
+    kRegisterSucessful = STATUS_CODE_REGISTER_SUCESSFUL,
+    kRegisterFailedTimeout = STATUS_CODE_REGISTER_FAILED_TIMEOUT,
+    kRegisterNormal = STATUS_CODE_REGISTER_NORMAL,
+    kRegisterFailedUsernameExsist = STATUS_CODE_REGISTER_FAILED_USERNAME_EXSIST,
+    kRegisterError = STATUS_CODE_ERROR
 };
 
 
 typedef struct
 {
     enum UIState ui_state;
-    volatile enum FlagRegisterStatusCode f_register_status; // 标志：是否收到注册响应
+    volatile uint16_t f_status_code;
 
-    char *server_address;
+    // char *server_address;
     MessageList message_list;
     User *user;
 
