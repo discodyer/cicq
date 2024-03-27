@@ -14,18 +14,6 @@ void *event_loop_thread(void *arg) {
 
 int main(int argc, char **argv)
 {
-    User currentUser = {
-        .username = "",
-        .password = ""};
-
-    Chatroom chat = {
-        .ui_state = kWelcome,
-        .user = &currentUser,
-        .server_address = NULL,
-        .message_list.head = NULL,
-        .message_list.tail = NULL,
-        .f_register_received = false};
-
     // 初始化ncurses
     initScreen();
 
@@ -62,8 +50,22 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    User currentUser = {
+        .username = "",
+        .password = ""};
+
+    Chatroom chat = {
+        .ui_state = kWelcome,
+        .user = &currentUser,
+        .server_address = NULL,
+        .message_list.head = NULL,
+        .message_list.tail = NULL,
+        .f_register_status = kRegisterNormal,
+        .base = base,
+        .bev = bev};
+
     // 设置回调函数处理读写和事件
-    bufferevent_setcb(bev, read_cb, NULL, event_cb, NULL);
+    bufferevent_setcb(bev, read_cb, NULL, event_cb, &chat);
     bufferevent_enable(bev, EV_READ | EV_WRITE);
 
     // 连接服务器
@@ -74,11 +76,11 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    // 构建JSON格式的注册信息
-    char info[512];
-    // snprintf(info, sizeof(info), "{\"statuscode\":101, \"username\":\"%s\", \"password\":\"password123\"}", argv[3]);
-    snprintf(info, sizeof(info), "{\"statuscode\":101, \"username\":\"%s\", \"password\":\"password123\"}", "cody");
-    bufferevent_write(bev, info, strlen(info)); // 发送注册信息
+    // // 构建JSON格式的注册信息
+    // char info[512];
+    // // snprintf(info, sizeof(info), "{\"statuscode\":101, \"username\":\"%s\", \"password\":\"password123\"}", argv[3]);
+    // snprintf(info, sizeof(info), "{\"statuscode\":101, \"username\":\"%s\", \"password\":\"password123\"}", "cody");
+    // bufferevent_write(bev, info, strlen(info)); // 发送注册信息
 
     // 进入事件循环
     // event_base_dispatch(base);

@@ -1,4 +1,8 @@
 #include "chatroom.h"
+#include "client_com.h"
+
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond_var = PTHREAD_COND_INITIALIZER;
 
 void printInMiddle(WINDOW *win, int starty, int startx, int width, char *string)
 {
@@ -162,7 +166,7 @@ void startChatroom(Chatroom *handler)
 }
 
 /// @brief 欢迎界面
-/// @param handler 
+/// @param handler
 void doWelcome(Chatroom *handler)
 {
     // 显示开始菜单
@@ -172,7 +176,7 @@ void doWelcome(Chatroom *handler)
 }
 
 /// @brief 登录界面
-/// @param handler 
+/// @param handler
 void doLogin(Chatroom *handler)
 {
     char username_[32] = "";
@@ -204,19 +208,49 @@ void doLogin(Chatroom *handler)
 }
 
 /// @brief 注册界面
-/// @param handler 
+/// @param handler
 void doRegister(Chatroom *handler)
 {
+    char username_[32] = "";
+    char password_[32] = "";
     clear();
     printw("Registering CICQ\n");
     printw("Enter username: ");
-    getnstr(handler->user->username, 31);
+    getnstr(username_, 31);
     noecho(); // 关闭回显
     printw("Enter password: ");
-    getPassword(handler->user->password, 31);
+    getPassword(password_, 31);
 
-    printw("\nUsername: %s\n", handler->user->username);
-    printw("Password: %s\n", handler->user->password);
+    printw("\nSending request to server...\n");
+
+    handler->f_register_status = kRegisterNormal;
+
+    registerWithServer(handler, username_, password_);
+
+    while (handler->f_register_status == kRegisterNormal)
+    {
+        continue;
+    }
+
+    switch (handler->f_register_status)
+    {
+    case kRegisterSucessful:
+        printw("Registion Sucessful!\n");
+        break;
+    case kRegisterFailedTimeout:
+        printw("Registion Failed: Timeout\n");
+        break;
+    case kRegisterFailedUsernameExsist:
+        printw("Registion Failed: Username Exsist\n");
+        break;
+    case kRegisterError:
+        printw("Registion Failed: Server Error\n");
+        break;
+    default:
+        printw("Registion Failed: Unknown Error\n");
+        break;
+    }
+    handler->f_register_status = kRegisterNormal;
 
     getch(); // 等待用户输入回车
 
@@ -225,7 +259,7 @@ void doRegister(Chatroom *handler)
 }
 
 /// @brief 聊天室界面
-/// @param handler 
+/// @param handler
 void doChatroom(Chatroom *handler)
 {
     clear();
@@ -236,7 +270,7 @@ void doChatroom(Chatroom *handler)
 }
 
 /// @brief 退出界面
-/// @param handler 
+/// @param handler
 void doExit(Chatroom *handler)
 {
     clear();
@@ -264,8 +298,8 @@ void closeScreen()
 }
 
 /// @brief 获取密码 - 带
-/// @param password 
-/// @param length 
+/// @param password
+/// @param length
 void getPassword(char *password, uint8_t length)
 {
     int ch, i = 0;
