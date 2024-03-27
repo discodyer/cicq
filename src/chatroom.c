@@ -249,6 +249,7 @@ void doExit(Chatroom *handler)
 void initScreen()
 {
     initscr();
+    // atexit(closeScreen);  // 注册退出时调用的函数
     cbreak();
     noecho();
     keypad(stdscr, TRUE); // 启用功能键
@@ -262,7 +263,7 @@ void closeScreen()
     endwin();
 }
 
-/// @brief 获取密码
+/// @brief 获取密码 - 带
 /// @param password 
 /// @param length 
 void getPassword(char *password, uint8_t length)

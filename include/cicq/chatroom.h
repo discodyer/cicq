@@ -4,6 +4,12 @@
 #include <ncurses.h>
 #include <string.h>
 #include <time.h>
+#include <stdio.h>
+#include <pthread.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include "json_wrapper.h"
 
 typedef struct
 {
@@ -24,8 +30,10 @@ typedef struct
 {
     enum UIState ui_state;
     char* server_address;
-
+    MessageList message_list;
     User* user;
+
+    bool f_register_received;
 
 } Chatroom;
 
@@ -47,6 +55,9 @@ void doLogin(Chatroom* handler);
 void doRegister(Chatroom* handler);
 void doChatroom(Chatroom* handler);
 void doExit(Chatroom* handler);
+
+// int registerAndWait(Chatroom* handler, uint16_t timeout);
+// void registerUser();
 
 
 #endif // CHATROOM_H
