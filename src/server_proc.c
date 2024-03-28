@@ -255,7 +255,7 @@ void msg_group_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
                 struct tm *timeinfo;
                 time_t rawtime_ = rawtime->valueint;
                 timeinfo = localtime(&rawtime_);
-                printf("[Group][[%02d:%02d:%02d]][%s]: %s\n", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, username->valuestring, payload->valuestring);
+                printf("[Group][%02d:%02d:%02d][%s]: %s\n", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, username->valuestring, payload->valuestring);
                 return;
             }
         }
