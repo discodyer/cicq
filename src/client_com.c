@@ -2,7 +2,7 @@
 #include "chatroom.h"
 #include "status_code.h"
 
-void read_cb(struct bufferevent *bev, void *ctx)
+void read_statuscode_cb(struct bufferevent *bev, void *ctx)
 {
     Chatroom *chatroom = (Chatroom *)ctx;
     char response[1024];
@@ -51,7 +51,7 @@ void sendRegistrationRequest(struct bufferevent *bev, const char *username, cons
 {
     char request[256];
     // 构造注册请求的JSON字符串，简化为直接格式化
-    snprintf(request, sizeof(request), "{\"statuscode\":101, \"username\":\"%s\", \"password\":\"%s\"}", username, password);
+    snprintf(request, sizeof(request), "{\"statuscode\":%d, \"username\":\"%s\", \"password\":\"%s\"}", STATUS_CODE_REGISTER, username, password);
     bufferevent_write(bev, request, strlen(request)); // 发送注册请求
 }
 
@@ -59,7 +59,7 @@ void sendLoginRequest(struct bufferevent *bev, const char *username, const char 
 {
     char request[256];
     // 构造注册请求的JSON字符串，简化为直接格式化
-    snprintf(request, sizeof(request), "{\"statuscode\":102, \"username\":\"%s\", \"password\":\"%s\"}", username, password);
+    snprintf(request, sizeof(request), "{\"statuscode\":%d, \"username\":\"%s\", \"password\":\"%s\"}", STATUS_CODE_LOGIN, username, password);
     bufferevent_write(bev, request, strlen(request)); // 发送登录请求
 }
 
@@ -67,7 +67,7 @@ void sendLoginRequest(struct bufferevent *bev, const char *username, const char 
 void registerWithServer(Chatroom *chatroom, const char *username, const char *password)
 {
     // 配置bufferevent的回调
-    bufferevent_setcb(chatroom->bev, read_cb, NULL, event_cb, chatroom);
+    bufferevent_setcb(chatroom->bev, read_statuscode_cb, NULL, event_cb, chatroom);
     bufferevent_enable(chatroom->bev, EV_READ | EV_WRITE);
 
     // 发送注册请求
@@ -77,7 +77,7 @@ void registerWithServer(Chatroom *chatroom, const char *username, const char *pa
 void loginWithServer(Chatroom *chatroom, const char *username, const char *password)
 {
     // 配置bufferevent的回调
-    bufferevent_setcb(chatroom->bev, read_cb, NULL, event_cb, chatroom);
+    bufferevent_setcb(chatroom->bev, read_statuscode_cb, NULL, event_cb, chatroom);
     bufferevent_enable(chatroom->bev, EV_READ | EV_WRITE);
 
     // 发送登录请求

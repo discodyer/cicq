@@ -35,5 +35,7 @@ MessageNode *findMessageByUsername(MessageList *list, const char *username);
 void freeMessageList(MessageList *list);
 MessageNode *getNext(MessageNode *node);
 MessageNode *getPrev(MessageNode *node);
+MessageNode *getTail(MessageList *list);
+MessageNode *getHead(MessageList *list);
 
 #endif // JSONWRAPPER_H

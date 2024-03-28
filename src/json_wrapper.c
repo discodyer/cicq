@@ -109,3 +109,13 @@ MessageNode *getPrev(MessageNode *node)
 {
     return node->prev;
 }
+
+MessageNode *getTail(MessageList *list)
+{
+    return list->tail;
+}
+
+MessageNode *getHead(MessageList *list)
+{
+    return list->head;
+}

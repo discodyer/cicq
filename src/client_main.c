@@ -56,7 +56,7 @@ int main(int argc, char **argv)
         .bev = bev};
 
     // 设置回调函数处理读写和事件
-    bufferevent_setcb(bev, read_cb, NULL, event_cb, &chat);
+    bufferevent_setcb(bev, read_statuscode_cb, NULL, event_cb, &chat);
     bufferevent_enable(bev, EV_READ | EV_WRITE);
 
     // 连接服务器
