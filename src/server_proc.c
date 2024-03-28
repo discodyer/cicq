@@ -4,25 +4,26 @@
 // extern UserList userList;
 
 /// @brief 添加用户
-/// @param head 
-/// @param username 
-/// @param password 
-/// @return 
-User *addUser(User **head, const char *username, const char *password)
+/// @param head
+/// @param username
+/// @param password
+/// @return
+User *addUser(User **head, const char *username, const char *password, struct bufferevent *bev)
 {
     User *newUser = (User *)malloc(sizeof(User));
     newUser->username = strdup(username); // 需要释放
     newUser->password = strdup(password); // 需要释放
     newUser->is_login = false;
     newUser->next = *head;
+    newUser->bev = bev;
     *head = newUser;
     return newUser;
 }
 
 /// @brief 通过用户名查找用户
-/// @param head 
-/// @param username 
-/// @return 
+/// @param head
+/// @param username
+/// @return
 User *findUser(User *head, const char *username)
 {
     while (head != NULL)
@@ -37,7 +38,7 @@ User *findUser(User *head, const char *username)
 }
 
 /// @brief 释放用户列表
-/// @param head 
+/// @param head
 void freeUserList(User *head)
 {
     User *tmp;
@@ -62,8 +63,8 @@ void accept_conn_cb(struct evconnlistener *listener, evutil_socket_t fd,
 }
 
 /// @brief 消息回调
-/// @param bev 
-/// @param ctx 
+/// @param bev
+/// @param ctx
 void read_cb(struct bufferevent *bev, void *ctx)
 {
     UserList *userList = (UserList *)ctx;
@@ -105,6 +106,16 @@ void read_cb(struct bufferevent *bev, void *ctx)
         // 进入登出回调
         logout_cb(bev, json, userList);
     }
+    else if (cJSON_IsNumber(statuscode) && statuscode->valueint == STATUS_CODE_MSG_SEND_GROUP)
+    {
+        // 进入群消息回调
+        msg_group_cb(bev, json, userList);
+    }
+    else if (cJSON_IsNumber(statuscode) && statuscode->valueint == STATUS_CODE_MSG_SEND_PRIVATE)
+    {
+        // 进入私聊消息回调
+        msg_private_cb(bev, json, userList);
+    }
     else
     {
         cJSON *response = cJSON_CreateObject();
@@ -121,9 +132,9 @@ void read_cb(struct bufferevent *bev, void *ctx)
 }
 
 /// @brief 错误回调
-/// @param bev 
-/// @param events 
-/// @param ctx 
+/// @param bev
+/// @param events
+/// @param ctx
 void error_cb(struct bufferevent *bev, short events, void *ctx)
 {
     if (events & BEV_EVENT_ERROR)
@@ -135,9 +146,9 @@ void error_cb(struct bufferevent *bev, short events, void *ctx)
 }
 
 /// @brief 登陆回调
-/// @param bev 
-/// @param json 
-/// @param userList 
+/// @param bev
+/// @param json
+/// @param userList
 void login_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
 {
     cJSON *username = cJSON_GetObjectItem(json, "username");
@@ -180,9 +191,9 @@ void login_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
 }
 
 /// @brief 登出回调
-/// @param bev 
-/// @param json 
-/// @param userList 
+/// @param bev
+/// @param json
+/// @param userList
 void logout_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
 {
     cJSON *username = cJSON_GetObjectItem(json, "username");
@@ -224,10 +235,102 @@ void logout_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
     }
 }
 
+void msg_group_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
+{
+    cJSON *username = cJSON_GetObjectItem(json, "username");
+    cJSON *payload = cJSON_GetObjectItem(json, "payload");
+    cJSON *rawtime = cJSON_GetObjectItem(json, "rawtime");
+
+    User *current_user = findUser(userList->head, username->valuestring);
+    if (current_user && cJSON_IsString(username))
+    { // 用户存在
+        cJSON *response = cJSON_CreateObject();
+        if (current_user->is_login)
+        { // 用户已登陆
+            if (cJSON_IsNumber(rawtime) && cJSON_IsString(payload))
+            {
+                broadcastMessage(userList, payload->valuestring, username->valuestring, rawtime->valueint);
+                cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_SUCESSFUL);
+                cJSON_AddStringToObject(response, "message", "群消息发送成功");
+                struct tm *timeinfo;
+                time_t rawtime_ = rawtime->valueint;
+                timeinfo = localtime(&rawtime_);
+                printf("[Group][[%02d:%02d:%02d]][%s]: %s\n", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, username->valuestring, payload->valuestring);
+                return;
+            }
+        }
+        else
+        { // 用户未登录
+            cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_ERROR);
+            cJSON_AddStringToObject(response, "message", "消息发送失败: 用户未登陆");
+            printf("用户 %s 尝试发送群消息失败: 用户未登陆\n", username->valuestring);
+        }
+        char *responseStr = cJSON_PrintUnformatted(response);
+        bufferevent_write(bev, responseStr, strlen(responseStr));
+        free(responseStr);
+        cJSON_Delete(response);
+        return;
+    }
+    else
+    {
+        // 用户不存在
+        cJSON *response = cJSON_CreateObject();
+        cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_ERROR);
+        cJSON_AddStringToObject(response, "message", "消息发送失败: 用户不存在");
+        printf("用户 %s 尝试发送群消息失败: 用户不存在\n", username->valuestring);
+        char *responseStr = cJSON_PrintUnformatted(response);
+        bufferevent_write(bev, responseStr, strlen(responseStr));
+        free(responseStr);
+        cJSON_Delete(response);
+        return;
+    }
+}
+
+void msg_private_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
+{
+    // cJSON *username = cJSON_GetObjectItem(json, "username");
+    // cJSON *password = cJSON_GetObjectItem(json, "password");
+    // User *current_user = findUser(userList->head, username->valuestring);
+    // if (current_user)
+    // { // 用户存在
+    //     cJSON *response = cJSON_CreateObject();
+    //     if (strcmp(current_user->password, password->valuestring) == 0)
+    //     { // 密码正确
+    //         cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_SUCESSFUL);
+    //         cJSON_AddStringToObject(response, "message", "登出成功");
+    //         printf("用户 %s 登出成功\n", username->valuestring);
+    //         current_user->is_login = false;
+    //     }
+    //     else
+    //     { // 密码错误
+    //         cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_ERROR);
+    //         cJSON_AddStringToObject(response, "message", "登出失败: 密码错误");
+    //         printf("用户 %s 登出失败: 密码错误\n", username->valuestring);
+    //         // current_user->is_login = false;
+    //     }
+    //     char *responseStr = cJSON_PrintUnformatted(response);
+    //     bufferevent_write(bev, responseStr, strlen(responseStr));
+    //     free(responseStr);
+    //     cJSON_Delete(response);
+    // }
+    // else
+    // {
+    //     // 用户不存在
+    //     cJSON *response = cJSON_CreateObject();
+    //     cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_ERROR);
+    //     cJSON_AddStringToObject(response, "message", "登出失败: 用户不存在");
+    //     char *responseStr = cJSON_PrintUnformatted(response);
+    //     bufferevent_write(bev, responseStr, strlen(responseStr));
+    //     free(responseStr);
+    //     cJSON_Delete(response);
+    //     printf("用户 %s 登出失败: 用户不存在\n", username->valuestring);
+    // }
+}
+
 /// @brief 注册回调
-/// @param bev 
-/// @param json 
-/// @param userList 
+/// @param bev
+/// @param json
+/// @param userList
 void register_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
 {
     cJSON *username = cJSON_GetObjectItem(json, "username");
@@ -236,7 +339,7 @@ void register_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
     if (!findUser(userList->head, username->valuestring))
     {
         // 用户不存在，添加新用户
-        addUser(&userList->head, username->valuestring, password->valuestring);
+        addUser(&userList->head, username->valuestring, password->valuestring, bev);
         cJSON *response = cJSON_CreateObject();
         cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_REGISTER_SUCESSFUL);
         cJSON_AddStringToObject(response, "message", "注册成功。");
@@ -258,4 +361,28 @@ void register_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
         cJSON_Delete(response);
         printf("用户 %s 注册失败，用户已经存在。\n", username->valuestring);
     }
+}
+
+/// @brief 广播消息
+/// @param userList
+/// @param message
+void broadcastMessage(UserList *userList, const char *message, const char *username, time_t msg_time)
+{
+    User *current = userList->head;
+    cJSON *json = cJSON_CreateObject();
+    cJSON_AddStringToObject(json, "username", username);
+    cJSON_AddStringToObject(json, "payload", message);
+    cJSON_AddNumberToObject(json, "rawtime", (double)msg_time);
+    cJSON_AddNumberToObject(json, "statuscode", (double)STATUS_CODE_MSG_BOARDCAST);
+    char *msg_to_send = cJSON_PrintUnformatted(json);
+    while (current != NULL)
+    {
+        if (current->bev && current->is_login)
+        {
+            bufferevent_write(current->bev, msg_to_send, strlen(msg_to_send));
+        }
+        current = current->next;
+    }
+    free(msg_to_send);
+    cJSON_Delete(json);
 }

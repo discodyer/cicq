@@ -15,8 +15,8 @@
 
 typedef struct
 {
-    char username[32];
-    char password[32];
+    char *username;
+    char *password;
 } User;
 
 enum UIState
@@ -68,5 +68,9 @@ void doLogin(Chatroom *handler);
 void doRegister(Chatroom *handler);
 void doChatroom(Chatroom *handler);
 void doExit(Chatroom *handler);
+void initChatroomWindows(WINDOW **chat_win, WINDOW **input_win, int max_y, int max_x);
+void printInChatWin(WINDOW *chat_win, const char *msg);
+void sendMsgGroup(Chatroom *handler, const char *msg);
+void sendMsgPrivate(Chatroom *handler, const char *msg, const char* contact);
 
 #endif // CHATROOM_H

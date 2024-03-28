@@ -14,5 +14,6 @@ void sendRegistrationRequest(struct bufferevent *bev, const char *username, cons
 void sendLoginRequest(struct bufferevent *bev, const char *username, const char *password);
 void registerWithServer(Chatroom *chatroom, const char *username, const char *password);
 void loginWithServer(Chatroom *chatroom, const char *username, const char *password);
+void sendMsgRequest(struct bufferevent *bev, const char *msg);
 
 #endif // CLIENTCOM_H

@@ -207,6 +207,8 @@ void doLogin(Chatroom *handler)
     {
     case STATUS_CODE_LOGIN_SUCESSFUL:
         printw("Login sucessful! Press any key to enter chatroom. ");
+        handler->user->username = strdup(username_); // 需要释放
+        handler->user->password = strdup(password_); // 需要释放
         handler->ui_state = kChatroom;
         break;
     case STATUS_CODE_LOGIN_FAILED_WROWN_PASSWORD:
@@ -286,10 +288,80 @@ void doRegister(Chatroom *handler)
 void doChatroom(Chatroom *handler)
 {
     clear();
-    printw("Chatroom!\nPress Enter to Exit. ");
-    getch(); // 等待用户输入回车
-    handler->ui_state = kExit;
-    return;
+    int max_y, max_x;
+    getmaxyx(stdscr, max_y, max_x);
+    // 创建聊天窗口和输入窗口
+    WINDOW *chat_win, *input_win;
+    initChatroomWindows(&chat_win, &input_win, max_y, max_x);
+
+    char input[max_x - 15];
+    while (1)
+    {
+        // 显示输入提示并获取输入
+        mvwprintw(input_win, 0, 0, "Enter message:[");
+        mvwprintw(input_win, 0, max_x - 1, "]");
+        wmove(input_win, 0, 15); // 将光标移动到输入区域
+        wgetnstr(input_win, input, sizeof(input) - 1);
+
+        if (strcmp(input, "quit") == 0)
+        {
+            handler->ui_state = kExit;
+            break; // 输入quit退出程序
+        }
+        // 打印到聊天窗口
+        printInChatWin(chat_win, input);
+        sendMsgGroup(handler, input);
+
+        // 清理输入行
+        werase(input_win);
+    }
+}
+
+void initChatroomWindows(WINDOW **chat_win, WINDOW **input_win, int max_y, int max_x)
+{
+    *chat_win = newwin(max_y - 1, max_x, 0, 0);
+    scrollok(*chat_win, TRUE);
+
+    *input_win = newwin(1, max_x, max_y - 1, 0);
+}
+
+void printInChatWin(WINDOW *chat_win, const char *msg)
+{
+    wprintw(chat_win, "%s\n", msg); // 打印消息并换行
+    wrefresh(chat_win);
+}
+
+void sendMsgPrivate(Chatroom *handler, const char *msg, const char *contact)
+{
+    // 创建一个新的JSON对象
+    cJSON *json = cJSON_CreateObject();
+
+    // 向JSON对象中添加数据
+    cJSON_AddStringToObject(json, "username", handler->user->username);
+    cJSON_AddStringToObject(json, "contact", contact);
+    cJSON_AddStringToObject(json, "payload", msg);
+    cJSON_AddNumberToObject(json, "rawtime", (double)time(NULL));
+    cJSON_AddNumberToObject(json, "statuscode", (double)STATUS_CODE_MSG_SEND_GROUP);
+    char *request = cJSON_PrintUnformatted(json);
+    sendMsgRequest(handler->bev, request);
+    free(request);
+    cJSON_Delete(json);
+}
+
+void sendMsgGroup(Chatroom *handler, const char *msg)
+{
+    // 创建一个新的JSON对象
+    cJSON *json = cJSON_CreateObject();
+
+    // 向JSON对象中添加数据
+    cJSON_AddStringToObject(json, "username", handler->user->username);
+    cJSON_AddStringToObject(json, "payload", msg);
+    cJSON_AddNumberToObject(json, "rawtime", (double)time(NULL));
+    cJSON_AddNumberToObject(json, "statuscode", (double)STATUS_CODE_MSG_SEND_GROUP);
+    char *request = cJSON_PrintUnformatted(json);
+    sendMsgRequest(handler->bev, request);
+    free(request);
+    cJSON_Delete(json);
 }
 
 /// @brief 退出界面

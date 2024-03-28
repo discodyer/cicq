@@ -63,6 +63,14 @@ void sendLoginRequest(struct bufferevent *bev, const char *username, const char 
     bufferevent_write(bev, request, strlen(request)); // 发送登录请求
 }
 
+void sendMsgRequest(struct bufferevent *bev, const char *msg)
+{
+    if (!msg)
+    {
+        return;
+    }
+    bufferevent_write(bev, msg, strlen(msg)); // 发送消息
+}
 
 void registerWithServer(Chatroom *chatroom, const char *username, const char *password)
 {

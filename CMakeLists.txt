@@ -72,3 +72,11 @@ add_executable(cicq-server
 )
 # 确保链接到libs目录下编译的libs
 target_link_libraries(cicq-server PRIVATE ${link_libraries})
+
+# 生成测试
+add_executable(cicq-test
+    src/chat.c
+    ${COMMON_SOURCES}
+)
+# 确保链接到libs目录下编译的libs
+target_link_libraries(cicq-test PRIVATE ${link_libraries})
