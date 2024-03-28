@@ -3,6 +3,11 @@
 
 // extern UserList userList;
 
+/// @brief 添加用户
+/// @param head 
+/// @param username 
+/// @param password 
+/// @return 
 User *addUser(User **head, const char *username, const char *password)
 {
     User *newUser = (User *)malloc(sizeof(User));
@@ -14,6 +19,10 @@ User *addUser(User **head, const char *username, const char *password)
     return newUser;
 }
 
+/// @brief 通过用户名查找用户
+/// @param head 
+/// @param username 
+/// @return 
 User *findUser(User *head, const char *username)
 {
     while (head != NULL)
@@ -27,6 +36,8 @@ User *findUser(User *head, const char *username)
     return NULL;
 }
 
+/// @brief 释放用户列表
+/// @param head 
 void freeUserList(User *head)
 {
     User *tmp;
@@ -50,6 +61,9 @@ void accept_conn_cb(struct evconnlistener *listener, evutil_socket_t fd,
     bufferevent_enable(bev, EV_READ | EV_WRITE);
 }
 
+/// @brief 消息回调
+/// @param bev 
+/// @param ctx 
 void read_cb(struct bufferevent *bev, void *ctx)
 {
     UserList *userList = (UserList *)ctx;
@@ -78,14 +92,17 @@ void read_cb(struct bufferevent *bev, void *ctx)
     cJSON *statuscode = cJSON_GetObjectItem(json, "statuscode");
     if (cJSON_IsNumber(statuscode) && statuscode->valueint == STATUS_CODE_REGISTER)
     {
+        // 进入注册回调
         register_cb(bev, json, userList);
     }
     else if (cJSON_IsNumber(statuscode) && statuscode->valueint == STATUS_CODE_LOGIN)
     {
+        // 进入登陆回调
         login_cb(bev, json, userList);
     }
     else if (cJSON_IsNumber(statuscode) && statuscode->valueint == STATUS_CODE_LOGOUT)
     {
+        // 进入登出回调
         logout_cb(bev, json, userList);
     }
     else
@@ -98,11 +115,15 @@ void read_cb(struct bufferevent *bev, void *ctx)
         free(responseStr);
         cJSON_Delete(response);
         printf("内部错误: 未知操作\n");
-    }
+    } // 错误处理
 
-    cJSON_Delete(json);
+    cJSON_Delete(json); // 释放json
 }
 
+/// @brief 错误回调
+/// @param bev 
+/// @param events 
+/// @param ctx 
 void error_cb(struct bufferevent *bev, short events, void *ctx)
 {
     if (events & BEV_EVENT_ERROR)
@@ -113,6 +134,10 @@ void error_cb(struct bufferevent *bev, short events, void *ctx)
     }
 }
 
+/// @brief 登陆回调
+/// @param bev 
+/// @param json 
+/// @param userList 
 void login_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
 {
     cJSON *username = cJSON_GetObjectItem(json, "username");
@@ -154,6 +179,10 @@ void login_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
     }
 }
 
+/// @brief 登出回调
+/// @param bev 
+/// @param json 
+/// @param userList 
 void logout_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
 {
     cJSON *username = cJSON_GetObjectItem(json, "username");
@@ -195,6 +224,10 @@ void logout_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
     }
 }
 
+/// @brief 注册回调
+/// @param bev 
+/// @param json 
+/// @param userList 
 void register_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
 {
     cJSON *username = cJSON_GetObjectItem(json, "username");
@@ -202,7 +235,7 @@ void register_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
 
     if (!findUser(userList->head, username->valuestring))
     {
-        // 添加新用户
+        // 用户不存在，添加新用户
         addUser(&userList->head, username->valuestring, password->valuestring);
         cJSON *response = cJSON_CreateObject();
         cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_REGISTER_SUCESSFUL);
