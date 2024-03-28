@@ -301,7 +301,9 @@ void doChatroom(Chatroom *handler)
         mvwprintw(input_win, 0, 0, "Enter message:[");
         mvwprintw(input_win, 0, max_x - 1, "]");
         wmove(input_win, 0, 15); // 将光标移动到输入区域
+        echo(); // 允许显示输入
         wgetnstr(input_win, input, sizeof(input) - 1);
+        noecho();
 
         if (strcmp(input, "quit") == 0)
         {
