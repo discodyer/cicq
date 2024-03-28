@@ -13,6 +13,7 @@ find_package(Curses REQUIRED)
 # 包含的头文件目录
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/cicq)
 include_directories(${PROJECT_SOURCE_DIR}/libs/cjson)
+include_directories(${PROJECT_SOURCE_DIR}/libs/)
 include_directories(${PROJECT_SOURCE_DIR}/libs/ncurses/include)
 include_directories(${PROJECT_SOURCE_DIR}/libs/libevent/include)
 include_directories(${PROJECT_BINARY_DIR}/libs/libevent/include)
