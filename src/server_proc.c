@@ -26,6 +26,10 @@ User *addUser(User **head, const char *username, const char *password, struct bu
 /// @return
 User *findUser(User *head, const char *username)
 {
+    if (!username || strcmp(username, "") == 0)
+    {
+        return NULL;
+    }
     while (head != NULL)
     {
         if (strcmp(head->username, username) == 0)
@@ -288,43 +292,85 @@ void msg_group_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
 
 void msg_private_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
 {
-    // cJSON *username = cJSON_GetObjectItem(json, "username");
-    // cJSON *password = cJSON_GetObjectItem(json, "password");
-    // User *current_user = findUser(userList->head, username->valuestring);
-    // if (current_user)
-    // { // 用户存在
-    //     cJSON *response = cJSON_CreateObject();
-    //     if (strcmp(current_user->password, password->valuestring) == 0)
-    //     { // 密码正确
-    //         cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_SUCESSFUL);
-    //         cJSON_AddStringToObject(response, "message", "登出成功");
-    //         printf("用户 %s 登出成功\n", username->valuestring);
-    //         current_user->is_login = false;
-    //     }
-    //     else
-    //     { // 密码错误
-    //         cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_ERROR);
-    //         cJSON_AddStringToObject(response, "message", "登出失败: 密码错误");
-    //         printf("用户 %s 登出失败: 密码错误\n", username->valuestring);
-    //         // current_user->is_login = false;
-    //     }
-    //     char *responseStr = cJSON_PrintUnformatted(response);
-    //     bufferevent_write(bev, responseStr, strlen(responseStr));
-    //     free(responseStr);
-    //     cJSON_Delete(response);
-    // }
-    // else
-    // {
-    //     // 用户不存在
-    //     cJSON *response = cJSON_CreateObject();
-    //     cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_ERROR);
-    //     cJSON_AddStringToObject(response, "message", "登出失败: 用户不存在");
-    //     char *responseStr = cJSON_PrintUnformatted(response);
-    //     bufferevent_write(bev, responseStr, strlen(responseStr));
-    //     free(responseStr);
-    //     cJSON_Delete(response);
-    //     printf("用户 %s 登出失败: 用户不存在\n", username->valuestring);
-    // }
+    cJSON *username = cJSON_GetObjectItem(json, "username");
+    cJSON *contact = cJSON_GetObjectItem(json, "contact");
+    cJSON *payload = cJSON_GetObjectItem(json, "payload");
+    cJSON *rawtime = cJSON_GetObjectItem(json, "rawtime");
+
+    User *current_user = findUser(userList->head, username->valuestring);
+    if (!(current_user && cJSON_IsString(username)))
+    { // 用户不存在
+        cJSON *response = cJSON_CreateObject();
+        cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_ERROR);
+        cJSON_AddStringToObject(response, "message", "消息发送失败: 用户不存在");
+        printf("用户 %s 尝试发送私聊消息失败: 用户不存在\n", username->valuestring);
+        char *responseStr = cJSON_PrintUnformatted(response);
+        bufferevent_write(bev, responseStr, strlen(responseStr));
+        free(responseStr);
+        cJSON_Delete(response);
+        return;
+    }
+
+    User *current_contact = findUser(userList->head, contact->valuestring);
+    if (!(contact && cJSON_IsString(contact)))
+    { // 联系人不存在
+        cJSON *response = cJSON_CreateObject();
+        cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_ERROR);
+        cJSON_AddStringToObject(response, "message", "消息发送失败: 联系人不存在");
+        printf("用户 %s 尝试发送私聊消息失败: 联系人 %s 不存在\n", username->valuestring, contact->valuestring);
+        char *responseStr = cJSON_PrintUnformatted(response);
+        bufferevent_write(bev, responseStr, strlen(responseStr));
+        free(responseStr);
+        cJSON_Delete(response);
+        return;
+    }
+
+    if (current_user && !current_user->is_login)
+    { // 用户未登录
+        cJSON *response = cJSON_CreateObject();
+        cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_ERROR);
+        cJSON_AddStringToObject(response, "message", "消息发送失败: 用户不在线");
+        printf("用户 %s 尝试发送私聊消息失败: 用户不在线\n", username->valuestring);
+        char *responseStr = cJSON_PrintUnformatted(response);
+        bufferevent_write(bev, responseStr, strlen(responseStr));
+        free(responseStr);
+        cJSON_Delete(response);
+        return;
+    }
+
+    if (current_contact && !current_contact->is_login)
+    { // 联系人不在线
+        cJSON *response = cJSON_CreateObject();
+        cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_ERROR);
+        cJSON_AddStringToObject(response, "message", "消息发送失败: 联系人不在线");
+        printf("用户 %s 尝试发送私聊消息失败: 联系人 %s 不在线\n", username->valuestring, contact->valuestring);
+        char *responseStr = cJSON_PrintUnformatted(response);
+        bufferevent_write(bev, responseStr, strlen(responseStr));
+        free(responseStr);
+        cJSON_Delete(response);
+        return;
+    }
+
+    // 用户存在
+    cJSON *response = cJSON_CreateObject();
+    if (current_user->is_login && current_contact->is_login)
+    { // 用户已登陆
+        if (cJSON_IsNumber(rawtime) && cJSON_IsString(payload))
+        {
+            broadcastMessage(userList, payload->valuestring, username->valuestring, rawtime->valueint);
+            cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_SUCESSFUL);
+            cJSON_AddStringToObject(response, "message", "群消息发送成功");
+            struct tm *timeinfo;
+            time_t rawtime_ = rawtime->valueint;
+            timeinfo = localtime(&rawtime_);
+            printf("[Group][%02d:%02d:%02d][%s]: %s\n", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, username->valuestring, payload->valuestring);
+        }
+    }
+    char *responseStr = cJSON_PrintUnformatted(response);
+    bufferevent_write(bev, responseStr, strlen(responseStr));
+    free(responseStr);
+    cJSON_Delete(response);
+    return;
 }
 
 /// @brief 注册回调
@@ -382,6 +428,23 @@ void broadcastMessage(UserList *userList, const char *message, const char *usern
             bufferevent_write(current->bev, msg_to_send, strlen(msg_to_send));
         }
         current = current->next;
+    }
+    free(msg_to_send);
+    cJSON_Delete(json);
+}
+
+void sendPrivateMessage(User * contact, const char *message, const char *username, time_t msg_time)
+{
+    cJSON *json = cJSON_CreateObject();
+    cJSON_AddStringToObject(json, "username", username);
+    cJSON_AddStringToObject(json, "contact", contact->username);
+    cJSON_AddStringToObject(json, "payload", message);
+    cJSON_AddNumberToObject(json, "rawtime", (double)msg_time);
+    cJSON_AddNumberToObject(json, "statuscode", (double)STATUS_CODE_MSG_PRIVATE);
+    char *msg_to_send = cJSON_PrintUnformatted(json);
+    if (contact->bev && contact->is_login)
+    {
+        bufferevent_write(contact->bev, msg_to_send, strlen(msg_to_send));
     }
     free(msg_to_send);
     cJSON_Delete(json);

@@ -7,11 +7,12 @@
 #define STATUS_CODE_LOGOUT                          (103)
 #define STATUS_CODE_MSG_SEND_GROUP                  (104)
 #define STATUS_CODE_MSG_SEND_PRIVATE                (105)
-#define STATUS_CODE_MSG_BOARDCAST                   (106)
 
 #define STATUS_CODE_SUCESSFUL                       (200)
 #define STATUS_CODE_REGISTER_SUCESSFUL              (201)
 #define STATUS_CODE_LOGIN_SUCESSFUL                 (202)
+#define STATUS_CODE_MSG_BOARDCAST                   (203)
+#define STATUS_CODE_MSG_PRIVATE                     (204)
 
 #define STATUS_CODE_ERROR                           (400)
 #define STATUS_CODE_REGISTER_FAILED_TIMEOUT         (401)
