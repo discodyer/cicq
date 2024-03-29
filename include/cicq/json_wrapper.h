@@ -7,11 +7,18 @@
 #include <time.h>
 #include <string.h>
 
+enum MsgType{
+    kMsgPrivate,
+    kMsgBroadcast,
+    kMsgError,
+};
 typedef struct
 {
     char *username;
+    char *contact;
     char *payload;
     time_t rawtime;
+    enum MsgType msg_type;
 } Message;
 
 typedef struct MessageNode

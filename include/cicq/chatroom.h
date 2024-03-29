@@ -42,9 +42,10 @@ typedef struct
 {
     enum UIState ui_state;
     volatile uint16_t f_status_code;
+    volatile bool new_message_received;
 
     // char *server_address;
-    MessageList message_list;
+    MessageList *message_list;
     User *user;
 
     struct event_base *base;
@@ -72,5 +73,6 @@ void initChatroomWindows(WINDOW **chat_win, WINDOW **input_win, int max_y, int m
 void printInChatWin(WINDOW *chat_win, const char *msg);
 void sendMsgGroup(Chatroom *handler, const char *msg);
 void sendMsgPrivate(Chatroom *handler, const char *msg, const char* contact);
+void printMsgInChatWin(WINDOW *chat_win, Message *msg);
 
 #endif // CHATROOM_H

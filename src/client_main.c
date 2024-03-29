@@ -6,7 +6,8 @@
 #include "client_com.h"
 
 // 事件循环线程的函数
-void *event_loop_thread(void *arg) {
+void *event_loop_thread(void *arg)
+{
     struct event_base *base = (struct event_base *)arg;
     event_base_dispatch(base); // 在这个线程中运行事件循环
     return NULL;
@@ -23,7 +24,8 @@ int main(int argc, char **argv)
 
     // 初始化libevent
     base = event_base_new();
-    if (!base) {
+    if (!base)
+    {
         perror("event_base_new");
         return 1;
     }
@@ -36,7 +38,8 @@ int main(int argc, char **argv)
 
     // 创建bufferevent用于TCP连接
     bev = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
-    if (!bev) {
+    if (!bev)
+    {
         perror("bufferevent_socket_new");
         event_base_free(base);
         return 1;
@@ -46,21 +49,26 @@ int main(int argc, char **argv)
         .username = "",
         .password = ""};
 
+    MessageList message_list = {
+        .head = NULL,
+        .tail = NULL};
+
     Chatroom chat = {
         .ui_state = kWelcome,
         .user = &currentUser,
-        .message_list.head = NULL,
-        .message_list.tail = NULL,
+        .message_list = &message_list,
         .f_status_code = 0,
         .base = base,
-        .bev = bev};
+        .bev = bev,
+        .new_message_received = false};
 
     // 设置回调函数处理读写和事件
     bufferevent_setcb(bev, read_statuscode_cb, NULL, event_cb, &chat);
     bufferevent_enable(bev, EV_READ | EV_WRITE);
 
     // 连接服务器
-    if (bufferevent_socket_connect(bev, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+    if (bufferevent_socket_connect(bev, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+    {
         perror("bufferevent_socket_connect");
         bufferevent_free(bev);
         event_base_free(base);
@@ -70,7 +78,8 @@ int main(int argc, char **argv)
     // 进入事件循环
     // 创建一个线程来运行libevent的事件循环
     pthread_t thread_id;
-    if (pthread_create(&thread_id, NULL, event_loop_thread, (void *)base) != 0) {
+    if (pthread_create(&thread_id, NULL, event_loop_thread, (void *)base) != 0)
+    {
         perror("pthread_create failed");
         event_base_free(base);
         return 1;

@@ -33,6 +33,41 @@ void read_statuscode_cb(struct bufferevent *bev, void *ctx)
     }
 }
 
+void read_message_cb(struct bufferevent *bev, void *ctx)
+{
+    Chatroom *chatroom = (Chatroom *)ctx;
+    char response[1024];
+    // 读取响应数据
+    bufferevent_read(bev, response, sizeof(response));
+    response[sizeof(response) - 1] = '\0';
+    // 处理响应
+
+    // 解析JSON
+    cJSON *json = cJSON_Parse(response);
+    // free(response); // 不再需要原始数据
+    if (!json)
+    {
+        chatroom->f_status_code = STATUS_CODE_ERROR; // 标记服务器错误
+        return;
+    }
+    cJSON *statuscode = cJSON_GetObjectItem(json, "statuscode");
+    if (cJSON_IsNumber(statuscode) && statuscode->valueint > 0 && statuscode->valueint < 600)
+    {
+        // 获取状态码
+        chatroom->f_status_code = statuscode->valueint; // 标记响应已接收
+    }
+    else
+    {
+        // 解析错误处理
+        chatroom->f_status_code = STATUS_CODE_ERROR; // 标记服务器错误
+        return;
+    }
+    if (statuscode->valueint == STATUS_CODE_MSG_BOARDCAST)
+    {
+        get_broadcast_msg_cb(chatroom, json);
+    }
+}
+
 void event_cb(struct bufferevent *bev, short events, void *ctx)
 {
     if (events & BEV_EVENT_EOF)
@@ -90,4 +125,23 @@ void loginWithServer(Chatroom *chatroom, const char *username, const char *passw
 
     // 发送登录请求
     sendLoginRequest(chatroom->bev, username, password);
+}
+
+void get_broadcast_msg_cb(Chatroom *handler, cJSON *json)
+{
+    cJSON *username = cJSON_GetObjectItem(json, "username");
+    cJSON *payload = cJSON_GetObjectItem(json, "payload");
+    cJSON *rawtime = cJSON_GetObjectItem(json, "rawtime");
+    if (!cJSON_IsString(username) &&
+        !cJSON_IsString(payload) &&
+        !cJSON_IsNumber(rawtime))
+    {
+        return;
+    }
+    Message msg = {.payload = strdup(payload->valuestring),
+                   .username = strdup(username->valuestring),
+                   .rawtime = (time_t)rawtime->valuedouble,
+                   .msg_type = kMsgBroadcast};
+    addMessage(handler->message_list, msg);
+    handler->new_message_received = true;
 }

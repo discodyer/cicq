@@ -1,5 +1,6 @@
 #include "chatroom.h"
 #include "client_com.h"
+#include "string.h"
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond_var = PTHREAD_COND_INITIALIZER;
@@ -287,36 +288,89 @@ void doRegister(Chatroom *handler)
 /// @param handler
 void doChatroom(Chatroom *handler)
 {
+    // 配置bufferevent的回调
+    bufferevent_setcb(handler->bev, read_message_cb, NULL, event_cb, handler);
+    bufferevent_enable(handler->bev, EV_READ | EV_WRITE);
+
     clear();
     int max_y, max_x;
     getmaxyx(stdscr, max_y, max_x);
+
     // 创建聊天窗口和输入窗口
     WINDOW *chat_win, *input_win;
     initChatroomWindows(&chat_win, &input_win, max_y, max_x);
 
     char input[max_x - 15];
+    int ch;    // 用于存储读取的字符
+    int i = 0; // 输入缓冲区的索引
+
+    // 设置input_win为非阻塞读取
+    nodelay(input_win, TRUE);
+    keypad(input_win, TRUE); // 开启特殊键读取，如F1, F2, arrow keys等
+
+    memset(input, 0, sizeof(input));
+
+    printInChatWin(chat_win, "You are now on Server!");
+
     while (1)
     {
-        // 显示输入提示并获取输入
-        mvwprintw(input_win, 0, 0, "Enter message:[");
-        mvwprintw(input_win, 0, max_x - 1, "]");
-        wmove(input_win, 0, 15); // 将光标移动到输入区域
-        echo(); // 允许显示输入
-        wgetnstr(input_win, input, sizeof(input) - 1);
-        noecho();
-
-        if (strcmp(input, "quit") == 0)
+        // 检查是否有新消息
+        if (handler->new_message_received)
         {
-            handler->ui_state = kExit;
-            break; // 输入quit退出程序
+            // 这里刷新聊天窗口显示新消息
+            printMsgInChatWin(chat_win, &handler->message_list->tail->message);
+            handler->new_message_received = false;
         }
-        // 打印到聊天窗口
-        printInChatWin(chat_win, input);
-        sendMsgGroup(handler, input);
 
-        // 清理输入行
-        werase(input_win);
+        // 显示输入提示
+        mvwprintw(input_win, 0, 0, "Enter message: [");
+        mvwprintw(input_win, 0, max_x - 1, "]");
+        wrefresh(input_win);
+
+        // 非阻塞地读取字符
+        ch = wgetch(input_win);
+
+        if (ch != ERR)
+        { // ERR 表示没有读取到输入
+            if (ch == '\n')
+            { // Enter键发送消息
+                if (strcmp(input, "quit") == 0)
+                {
+                    handler->ui_state = kExit;
+                    break; // 输入quit退出程序
+                }
+
+                // 发送消息到服务器
+                sendMsgGroup(handler, input);
+
+                // 清理输入行和输入缓冲区
+                memset(input, 0, sizeof(input));
+                i = 0;
+                werase(input_win);
+            }
+            else if (ch == KEY_BACKSPACE)
+            { // 处理退格键
+                if (i > 0)
+                    input[--i] = '\0';
+            }
+            else if (i < sizeof(input) - 2)
+            {
+                input[i++] = (char)ch;
+                input[i] = '\0';
+            }
+
+            // 刷新输入窗口以显示当前输入内容
+            mvwprintw(input_win, 0, 16, "%s", input);
+            wrefresh(input_win);
+        }
+
+        // 使用小延迟来避免CPU过度使用
+        napms(50);
     }
+
+    // 清理资源
+    delwin(chat_win);
+    delwin(input_win);
 }
 
 void initChatroomWindows(WINDOW **chat_win, WINDOW **input_win, int max_y, int max_x)
@@ -331,6 +385,26 @@ void printInChatWin(WINDOW *chat_win, const char *msg)
 {
     wprintw(chat_win, "%s\n", msg); // 打印消息并换行
     wrefresh(chat_win);
+}
+
+void printMsgInChatWin(WINDOW *chat_win, Message *msg)
+{
+    char msg_[strlen(msg->payload) + 64];
+    struct tm *timeinfo;
+    timeinfo = localtime(&msg->rawtime);
+
+    if (msg->msg_type == kMsgBroadcast)
+    {
+        sprintf(msg_, "[Group][%02d:%02d:%02d][%s]: %s",
+                timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec,
+                msg->username, msg->payload);
+    }else if (msg->msg_type == kMsgPrivate)
+    {
+        sprintf(msg_, "[Private][%02d:%02d:%02d][%s]->[%s]: %s",
+                timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec,
+                msg->username, msg->contact, msg->payload);
+    }
+    printInChatWin(chat_win, msg_);
 }
 
 void sendMsgPrivate(Chatroom *handler, const char *msg, const char *contact)
