@@ -29,7 +29,7 @@ User *addUser(User **head, const char *username, const char *password, struct bu
 User *findUser(User *head, const char *username);
 void freeUserList(User *head);
 void broadcastMessage(UserList *userList, const char *message, const char *username, time_t msg_time);
-void sendPrivateMessage(User * contact, const char *message, const char *username, time_t msg_time);
+void sendPrivateMessage(User * user, User * contact, const char *message, time_t msg_time);
 
 void accept_conn_cb(struct evconnlistener *listener, evutil_socket_t fd,
                     struct sockaddr *address, int socklen, void *ctx);
