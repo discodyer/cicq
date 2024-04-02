@@ -297,8 +297,16 @@ void msg_private_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
     cJSON *payload = cJSON_GetObjectItem(json, "payload");
     cJSON *rawtime = cJSON_GetObjectItem(json, "rawtime");
 
+    if (!cJSON_IsString(username) &&
+        !cJSON_IsString(contact) &&
+        !cJSON_IsString(payload) &&
+        !cJSON_IsNumber(rawtime))
+    {
+        return;
+    }
+
     User *current_user = findUser(userList->head, username->valuestring);
-    if (!(current_user && cJSON_IsString(username)))
+    if (!current_user)
     { // 用户不存在
         cJSON *response = cJSON_CreateObject();
         cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_ERROR);
@@ -312,7 +320,7 @@ void msg_private_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
     }
 
     User *current_contact = findUser(userList->head, contact->valuestring);
-    if (!(contact && cJSON_IsString(contact)))
+    if (!current_contact)
     { // 联系人不存在
         cJSON *response = cJSON_CreateObject();
         cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_ERROR);
@@ -325,7 +333,7 @@ void msg_private_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
         return;
     }
 
-    if (current_user && !current_user->is_login)
+    if (!current_user->is_login)
     { // 用户未登录
         cJSON *response = cJSON_CreateObject();
         cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_ERROR);
@@ -338,7 +346,7 @@ void msg_private_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
         return;
     }
 
-    if (current_contact && !current_contact->is_login)
+    if (!current_contact->is_login)
     { // 联系人不在线
         cJSON *response = cJSON_CreateObject();
         cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_ERROR);
@@ -353,19 +361,13 @@ void msg_private_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
 
     // 用户存在
     cJSON *response = cJSON_CreateObject();
-    if (current_user->is_login && current_contact->is_login)
-    { // 用户已登陆
-        if (cJSON_IsNumber(rawtime) && cJSON_IsString(payload))
-        {
-            sendPrivateMessage(current_user, current_contact, payload->valuestring, rawtime->valueint);
-            cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_SUCESSFUL);
-            cJSON_AddStringToObject(response, "message", "私聊消息发送成功");
-            struct tm *timeinfo;
-            time_t rawtime_ = rawtime->valueint;
-            timeinfo = localtime(&rawtime_);
-            printf("[PM][<%s>to<%s>][%02d:%02d:%02d][%s]: %s\n", username->valuestring, contact->valuestring, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, username->valuestring, payload->valuestring);
-        }
-    }
+    sendPrivateMessage(current_user, current_contact, payload->valuestring, rawtime->valueint);
+    cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_SUCESSFUL);
+    cJSON_AddStringToObject(response, "message", "私聊消息发送成功");
+    struct tm *timeinfo;
+    time_t rawtime_ = rawtime->valueint;
+    timeinfo = localtime(&rawtime_);
+    printf("[PM][<%s>to<%s>][%02d:%02d:%02d][%s]: %s\n", username->valuestring, contact->valuestring, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, username->valuestring, payload->valuestring);
     char *responseStr = cJSON_PrintUnformatted(response);
     bufferevent_write(bev, responseStr, strlen(responseStr));
     free(responseStr);
@@ -433,7 +435,7 @@ void broadcastMessage(UserList *userList, const char *message, const char *usern
     cJSON_Delete(json);
 }
 
-void sendPrivateMessage(User * user, User * contact, const char *message, time_t msg_time)
+void sendPrivateMessage(User *user, User *contact, const char *message, time_t msg_time)
 {
     cJSON *json = cJSON_CreateObject();
     cJSON_AddStringToObject(json, "username", user->username);

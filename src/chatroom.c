@@ -354,7 +354,7 @@ void doChatroom(Chatroom *handler)
                         size_t usernameLength = secondColon - firstColon - 1;
                         size_t messageLength = strlen(secondColon) - 1;
 
-                        if (usernameLength > 0 && usernameLength < sizeof(sizeof(char) * 255) && messageLength > 0)
+                        if (usernameLength > 0 && usernameLength < sizeof(char) * 255 && messageLength > 0)
                         {
                             char contact[usernameLength + 1];
                             strncpy(contact, firstColon + 1, usernameLength);
@@ -368,9 +368,11 @@ void doChatroom(Chatroom *handler)
                         }
                     }
                 }
-
-                // 发送消息到服务器
-                sendMsgGroup(handler, input);
+                else
+                {
+                    // 发送消息到服务器
+                    sendMsgGroup(handler, input);
+                }
 
                 // 清理输入行和输入缓冲区
                 memset(input, 0, sizeof(input));
