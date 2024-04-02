@@ -66,6 +66,11 @@ void read_message_cb(struct bufferevent *bev, void *ctx)
     {
         get_broadcast_msg_cb(chatroom, json);
     }
+    if (statuscode->valueint == STATUS_CODE_MSG_PRIVATE)
+    {
+        get_private_msg_cb(chatroom, json);
+    }
+
 }
 
 void event_cb(struct bufferevent *bev, short events, void *ctx)
@@ -95,6 +100,14 @@ void sendLoginRequest(struct bufferevent *bev, const char *username, const char 
     char request[256];
     // 构造注册请求的JSON字符串，简化为直接格式化
     snprintf(request, sizeof(request), "{\"statuscode\":%d, \"username\":\"%s\", \"password\":\"%s\"}", STATUS_CODE_LOGIN, username, password);
+    bufferevent_write(bev, request, strlen(request)); // 发送登录请求
+}
+
+void sendLogoutRequest(struct bufferevent *bev, const char *username, const char *password)
+{
+    char request[256];
+    // 构造注册请求的JSON字符串，简化为直接格式化
+    snprintf(request, sizeof(request), "{\"statuscode\":%d, \"username\":\"%s\", \"password\":\"%s\"}", STATUS_CODE_LOGOUT, username, password);
     bufferevent_write(bev, request, strlen(request)); // 发送登录请求
 }
 
@@ -142,6 +155,28 @@ void get_broadcast_msg_cb(Chatroom *handler, cJSON *json)
                    .username = strdup(username->valuestring),
                    .rawtime = (time_t)rawtime->valuedouble,
                    .msg_type = kMsgBroadcast};
+    addMessage(handler->message_list, msg);
+    handler->new_message_received = true;
+}
+
+void get_private_msg_cb(Chatroom *handler, cJSON *json)
+{
+    cJSON *username = cJSON_GetObjectItem(json, "username");
+    cJSON *contact = cJSON_GetObjectItem(json, "contact");
+    cJSON *payload = cJSON_GetObjectItem(json, "payload");
+    cJSON *rawtime = cJSON_GetObjectItem(json, "rawtime");
+    if (!cJSON_IsString(username) &&
+        !cJSON_IsString(payload) &&
+        !cJSON_IsString(contact) &&
+        !cJSON_IsNumber(rawtime))
+    {
+        return;
+    }
+    Message msg = {.payload = strdup(payload->valuestring),
+                   .username = strdup(username->valuestring),
+                   .contact = strdup(contact->valuestring),
+                   .rawtime = (time_t)rawtime->valuedouble,
+                   .msg_type = kMsgPrivate};
     addMessage(handler->message_list, msg);
     handler->new_message_received = true;
 }

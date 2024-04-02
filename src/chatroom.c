@@ -336,8 +336,37 @@ void doChatroom(Chatroom *handler)
             { // Enter键发送消息
                 if (strcmp(input, "quit") == 0)
                 {
+                    sendLogoutRequest(handler->bev, handler->user->username, handler->user->password);
                     handler->ui_state = kExit;
                     break; // 输入quit退出程序
+                }
+
+                // 检查私聊消息
+                // 检查输入是否以"PM:"开头
+                if (strncmp(input, "PM:", 3) == 0)
+                {
+                    const char *firstColon = strchr(input, ':');
+                    const char *secondColon = strchr(firstColon + 1, ':');
+
+                    // 确保找到了两个冒号
+                    if (firstColon && secondColon && secondColon > firstColon)
+                    {
+                        size_t usernameLength = secondColon - firstColon - 1;
+                        size_t messageLength = strlen(secondColon) - 1;
+
+                        if (usernameLength > 0 && usernameLength < sizeof(sizeof(char) * 255) && messageLength > 0)
+                        {
+                            char contact[usernameLength + 1];
+                            strncpy(contact, firstColon + 1, usernameLength);
+                            contact[usernameLength] = '\0'; // 确保用户名字符串以null终止
+
+                            char message[messageLength + 1];
+                            strncpy(message, secondColon + 1, messageLength);
+                            message[messageLength] = '\0'; // 确保消息字符串以null终止
+
+                            sendMsgPrivate(handler, message, contact);
+                        }
+                    }
                 }
 
                 // 发送消息到服务器
@@ -398,9 +427,10 @@ void printMsgInChatWin(WINDOW *chat_win, Message *msg)
         sprintf(msg_, "[Group][%02d:%02d:%02d][%s]: %s",
                 timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec,
                 msg->username, msg->payload);
-    }else if (msg->msg_type == kMsgPrivate)
+    }
+    else if (msg->msg_type == kMsgPrivate)
     {
-        sprintf(msg_, "[Private][%02d:%02d:%02d][%s]->[%s]: %s",
+        sprintf(msg_, "[PM][%02d:%02d:%02d][%s]->[%s]: %s",
                 timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec,
                 msg->username, msg->contact, msg->payload);
     }
@@ -417,7 +447,7 @@ void sendMsgPrivate(Chatroom *handler, const char *msg, const char *contact)
     cJSON_AddStringToObject(json, "contact", contact);
     cJSON_AddStringToObject(json, "payload", msg);
     cJSON_AddNumberToObject(json, "rawtime", (double)time(NULL));
-    cJSON_AddNumberToObject(json, "statuscode", (double)STATUS_CODE_MSG_SEND_GROUP);
+    cJSON_AddNumberToObject(json, "statuscode", (double)STATUS_CODE_MSG_SEND_PRIVATE);
     char *request = cJSON_PrintUnformatted(json);
     sendMsgRequest(handler->bev, request);
     free(request);

@@ -357,13 +357,13 @@ void msg_private_cb(struct bufferevent *bev, cJSON *json, UserList *userList)
     { // 用户已登陆
         if (cJSON_IsNumber(rawtime) && cJSON_IsString(payload))
         {
-            broadcastMessage(userList, payload->valuestring, username->valuestring, rawtime->valueint);
+            sendPrivateMessage(current_contact, payload->valuestring, username->valuestring, rawtime->valueint);
             cJSON_AddNumberToObject(response, "statuscode", STATUS_CODE_SUCESSFUL);
-            cJSON_AddStringToObject(response, "message", "群消息发送成功");
+            cJSON_AddStringToObject(response, "message", "私聊消息发送成功");
             struct tm *timeinfo;
             time_t rawtime_ = rawtime->valueint;
             timeinfo = localtime(&rawtime_);
-            printf("[Group][%02d:%02d:%02d][%s]: %s\n", timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, username->valuestring, payload->valuestring);
+            printf("[PM][<%s>to<%s>][%02d:%02d:%02d][%s]: %s\n", username->valuestring, contact->valuestring, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, username->valuestring, payload->valuestring);
         }
     }
     char *responseStr = cJSON_PrintUnformatted(response);
